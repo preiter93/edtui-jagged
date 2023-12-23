@@ -329,16 +329,16 @@ impl<T> Jagged<T> {
     }
 
     /// Find the next position that satisfies a given predicate.
-    /// Returns `Some((&T, Index2))` if a position is found that satisfies the
+    /// Returns `Some((Option<&T>, Index2))` if a position is found that satisfies the
     /// predicate, otherwise `None`.
     #[must_use]
-    pub fn next_predicate<F, I>(&self, index: I, f: F) -> Option<(&T, Index2)>
+    pub fn next_predicate<F, I>(&self, index: I, f: F) -> Option<(Option<&T>, Index2)>
     where
-        F: Fn(&T) -> bool,
+        F: Fn(Option<&T>) -> bool,
         I: Into<Index2>,
     {
         let mut index = index.into();
-        while let Some((Some(val), pos)) = self.next(index) {
+        while let Some((val, pos)) = self.next(index) {
             if f(val) {
                 return Some((val, pos));
             }
@@ -348,18 +348,18 @@ impl<T> Jagged<T> {
     }
 
     /// Find the next position that satisfies a given predicate.
-    /// Returns `Some((&mut T, Index2))` if a position is found that satisfies the
+    /// Returns `Some((Option<&mut T>, Index2))` if a position is found that satisfies the
     /// predicate, otherwise `None`.
     #[must_use]
-    pub fn next_predicate_mut<F, I>(&mut self, index: I, f: F) -> Option<(&mut T, Index2)>
+    pub fn next_predicate_mut<F, I>(&mut self, index: I, f: F) -> Option<(Option<&mut T>, Index2)>
     where
-        F: Fn(&T) -> bool,
+        F: Fn(Option<&T>) -> bool,
         I: Into<Index2>,
     {
         let mut index = index.into();
-        while let Some((Some(val), pos)) = self.next(index) {
+        while let Some((val, pos)) = self.next(index) {
             if f(val) {
-                return self.get_mut(pos).map(|val| (val, pos));
+                return Some((self.get_mut(pos), pos));
             }
             index = pos;
         }
@@ -367,15 +367,15 @@ impl<T> Jagged<T> {
     }
 
     /// Find the previous position that satisfies a given predicate.
-    /// Returns `Some((&T, Index2))` if a satisfying position is found, otherwise `None`.
+    /// Returns `Some((Option<&T>, Index2))` if a satisfying position is found, otherwise `None`.
     #[must_use]
-    pub fn prev_predicate<F, I>(&self, index: I, f: F) -> Option<(&T, Index2)>
+    pub fn prev_predicate<F, I>(&self, index: I, f: F) -> Option<(Option<&T>, Index2)>
     where
-        F: Fn(&T) -> bool,
+        F: Fn(Option<&T>) -> bool,
         I: Into<Index2>,
     {
         let mut index = index.into();
-        while let Some((Some(val), next)) = self.prev(index) {
+        while let Some((val, next)) = self.prev(index) {
             if f(val) {
                 return Some((val, next));
             }
@@ -385,19 +385,19 @@ impl<T> Jagged<T> {
     }
 
     /// Find the previous position that satisfies a given predicate.
-    /// Returns `Some((&mut T, Index2))` if a satisfying position is found, otherwise `None`.
+    /// Returns `Some((Option<&mut T>, Index2))` if a satisfying position is found, otherwise `None`.
     #[must_use]
-    pub fn prev_predicate_mut<F, I>(&mut self, index: I, f: F) -> Option<(&mut T, Index2)>
+    pub fn prev_predicate_mut<F, I>(&mut self, index: I, f: F) -> Option<(Option<&mut T>, Index2)>
     where
-        F: Fn(&T) -> bool,
+        F: Fn(Option<&T>) -> bool,
         I: Into<Index2>,
     {
         let mut index = index.into();
-        while let Some((Some(val), prev)) = self.prev(index) {
+        while let Some((val, pos)) = self.prev(index) {
             if f(val) {
-                return self.get_mut(prev).map(|val| (val, prev));
+                return Some((self.get_mut(pos), pos));
             }
-            index = prev;
+            index = pos;
         }
         None
     }
@@ -558,15 +558,15 @@ mod tests {
 
     #[test]
     fn test_next_predicate() {
-        let data: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
+        let data: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![], vec![4, 5, 6], vec![7, 8, 9]];
         let lines = Jagged::new(data);
 
         assert_eq!(
-            lines.next_predicate(Index2::new(0, 0), |&val| val == 5),
-            Some((&5, Index2::new(1, 1)))
+            lines.next_predicate(Index2::new(0, 2), |val| val == Some(&5)),
+            Some((Some(&5), Index2::new(2, 1)))
         );
         assert_eq!(
-            lines.next_predicate(Index2::new(0, 0), |&val| val == 99),
+            lines.next_predicate(Index2::new(0, 0), |val| val == Some(&99)),
             None,
         );
     }
@@ -577,11 +577,11 @@ mod tests {
         let lines = Jagged::new(data);
 
         assert_eq!(
-            lines.prev_predicate(Index2::new(2, 2), |&val| val == 5),
-            Some((&5, Index2::new(1, 1)))
+            lines.prev_predicate(Index2::new(2, 2), |val| val == Some(&5)),
+            Some((Some(&5), Index2::new(1, 1)))
         );
         assert_eq!(
-            lines.prev_predicate(Index2::new(2, 2), |&val| val == 99),
+            lines.prev_predicate(Index2::new(2, 2), |val| val == Some(&99)),
             None,
         );
     }
