@@ -106,29 +106,6 @@ impl<T> Jagged<T> {
         index.remove(self)
     }
 
-    // /// Inserts an element at `position` within the rows, shifting all
-    // /// elements after it.
-    // pub fn insert<I, U>(&mut self, index: I, slice: U)
-    // where
-    //     I: RowIndex,
-    //     U: JaggedSlice<T, Index = RowIndex>,
-    // {
-    //     // let index = index.into();
-    //     slice.insert_into(index.into(), self);
-    //     // if let Some(line) = self.get_mut(RowIndex::new(index.row)) {
-    //     //     line.insert(index.col, element)
-    //     // }
-    // }
-
-    // /// Inserts a row at position `index` within the vector, shifting all
-    // /// elements after it.
-    // pub fn insert_row<U>(&mut self, row_index: usize, row: U)
-    // where
-    //     U: Into<Vec<T>>,
-    // {
-    //     self.data.insert(row_index, row.into());
-    // }
-
     /// Moves all the elements of `other` into `self`, leaving `other` empty.
     ///
     /// Use [`merge`] if the arrays should be fused at tail and head instead.
@@ -207,15 +184,15 @@ impl<T> Jagged<T> {
         self.data[row].len()
     }
 
-    /// Find the first index.
-    /// Returns `Some(Index2)` if the matrix is not empty, otherwise `None`.
-    #[must_use]
-    pub fn first_index(&self) -> Option<Index2> {
-        self.data
-            .get(0)
-            .and_then(|row| row.get(0))
-            .map(|_| Index2::new(0, 0))
-    }
+    // /// Find the first index.
+    // /// Returns `Some(Index2)` if the matrix is not empty, otherwise `None`.
+    // #[must_use]
+    // pub fn first_index(&self) -> Option<Index2> {
+    //     self.data
+    //         .get(0)
+    //         .and_then(|row| row.get(0))
+    //         .map(|_| Index2::new(0, 0))
+    // }
 
     /// Get a reference to the element at a specific position.
     /// Returns `Some(& T)` if the position is valid, otherwise `None`.
@@ -430,9 +407,16 @@ impl From<&str> for Jagged<char> {
     /// of the string, i.e. a multiline string will be parsed to multiple
     /// inner vectors.
     fn from(value: &str) -> Self {
-        Self {
-            data: value.lines().map(|line| line.chars().collect()).collect(),
+        let mut data: Vec<Vec<char>> = Vec::new();
+        for line in value.lines() {
+            data.push(line.chars().collect())
         }
+        if let Some(last) = value.chars().last() {
+            if last == '\n' {
+                data.push(Vec::new());
+            }
+        }
+        Self { data }
     }
 }
 
@@ -584,5 +568,12 @@ mod tests {
             lines.prev_predicate(Index2::new(2, 2), |val| val == Some(&99)),
             None,
         );
+    }
+
+    #[test]
+    fn test_from_str() {
+        let lines = Jagged::from("H\n");
+
+        assert_eq!(lines, Jagged::new(vec![vec!['H'], vec![]]));
     }
 }

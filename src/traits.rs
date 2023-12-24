@@ -7,8 +7,6 @@ pub trait JaggedIndex<T> {
     fn get(self, array: &Jagged<T>) -> Option<&Self::Output>;
     fn get_mut(self, array: &mut Jagged<T>) -> Option<&mut Self::Output>;
     fn remove(self, array: &mut Jagged<T>) -> Self::Output;
-    // fn row(self) -> usize;
-    // fn col(self) -> usize;
 }
 
 impl<T> JaggedIndex<T> for Index2 {
@@ -28,14 +26,6 @@ impl<T> JaggedIndex<T> for Index2 {
     fn remove(self, array: &mut Jagged<T>) -> Self::Output {
         array.data[self.row].remove(self.col)
     }
-
-    // fn row(self) -> usize {
-    //     self.row
-    // }
-    //
-    // fn col(self) -> usize {
-    //     self.col
-    // }
 }
 
 impl<T> JaggedIndex<T> for RowIndex {
