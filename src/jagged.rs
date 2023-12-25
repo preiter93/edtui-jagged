@@ -413,7 +413,7 @@ impl From<&str> for Jagged<char> {
     fn from(value: &str) -> Self {
         let mut data: Vec<Vec<char>> = Vec::new();
         for line in value.lines() {
-            data.push(line.chars().collect())
+            data.push(line.chars().collect());
         }
         if let Some(last) = value.chars().last() {
             if last == '\n' {
