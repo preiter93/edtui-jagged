@@ -112,14 +112,14 @@ impl<T> Jagged<T> {
 
     /// Moves all the elements of `other` into `self`, leaving `other` empty.
     ///
-    /// Use [`merge`] if the arrays should be fused at tail and head instead.
+    /// Use [`Self::merge`] if the arrays should be fused at tail and head instead.
     pub fn append(&mut self, other: &mut Self) {
         self.data.append(&mut other.data);
     }
 
     /// Moves all the elements of `other` into `self`, leaving `other` empty.
     ///
-    /// Similar to [`append`] but fuses the last vector of `self` with the
+    /// Similar to [`Self::append`] but fuses the last vector of `self` with the
     /// first vector of `other`.
     pub fn merge(&mut self, other: &mut Self) {
         if other.data.is_empty() {
@@ -387,7 +387,7 @@ impl<T> Jagged<T> {
 impl<T: Clone> Jagged<T> {
     // Flattens the jagged array into a single vector with optional line breaks.
     ///
-    /// Returns a flattened Vec<T> where each row from the original structure is
+    /// Returns a flattened `Vec<T>` where each row from the original structure is
     /// concatenated into a single vector. If provided, the `line_break` parameter
     /// is inserted between rows.
     pub fn flatten(&self, line_break: &Option<T>) -> Vec<T> {
@@ -425,7 +425,7 @@ impl From<&str> for Jagged<char> {
 }
 
 impl From<Jagged<char>> for String {
-    /// Construct a string from a [`Jagged<char`].
+    /// Construct a string from a [`Jagged<char>`].
     fn from(value: Jagged<char>) -> String {
         value.flatten(&Some('\n')).into_iter().collect()
     }
