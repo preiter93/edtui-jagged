@@ -1,6 +1,10 @@
 mod helper;
 mod iter;
-use crate::{index::RowIndex, traits::JaggedSlice, Index2, JaggedIndex};
+use crate::{
+    index::RowIndex,
+    traits::{JaggedRemove, JaggedSlice},
+    Index2, JaggedIndex,
+};
 use std::fmt::Debug;
 
 /// A generic container for working with an object, where each element is organized
@@ -101,7 +105,7 @@ impl<T> Jagged<T> {
     /// Panics if `index` is out of bounds.
     pub fn remove<I>(&mut self, index: I) -> I::Output
     where
-        I: JaggedIndex<T>,
+        I: JaggedRemove<T>,
     {
         index.remove(self)
     }
