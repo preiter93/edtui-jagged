@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use crate::Jagged;
 
 /// An index representing a specific position in a 2d jagged array.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Index2 {
     /// The row index.
     pub row: usize,
