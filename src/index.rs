@@ -1,3 +1,6 @@
+//! # Index Module
+//!
+//! The `index` module provides types related to indexing elements within the jagged array.
 use std::cmp::Ordering;
 
 use crate::Jagged;
