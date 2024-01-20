@@ -42,25 +42,33 @@ impl<'a, 'b, T: PartialEq + Debug> Iterator for MatchIndices<'a, 'b, T> {
     type Item = (&'b [T], Index2);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.data.is_empty() | self.pattern.is_empty() {
+        if self.data.is_empty() || self.pattern.is_empty() {
             return None;
         }
+        // If the start index is None at this point, this means that the
+        // previous iteration ended at the last element of the array and
+        // we can stop here prematurely.
         let Some(start_index) = self.start_index else {
             return None;
         };
-        let mut stack = VecDeque::<&T>::new();
         let pattern_len = self.pattern.len();
+        let mut sequence_buffer = VecDeque::<&T>::new();
         for (value, index) in self.data.iter().from(start_index) {
             let Some(value) = value else { continue };
             if index.col == 0 {
-                stack.clear();
+                sequence_buffer.clear();
             }
-            if stack.len() >= pattern_len {
-                stack.pop_front();
+            if sequence_buffer.len() >= pattern_len {
+                sequence_buffer.pop_front();
             }
-            stack.push_back(value);
-            if self.match_found(&stack) {
+            sequence_buffer.push_back(value);
+            if self.match_found(&sequence_buffer) {
+                // We set the start index for the next iteration. Note
+                // that the index might be none in which case the next
+                // iteration will return with None.
                 self.start_index = self.data.next(index).map(|(_, index)| index);
+                // The match was found n elements before where n is the
+                // length of the pattern.
                 let mut index = index;
                 index.col -= pattern_len.saturating_sub(1);
                 return Some((self.pattern, index));
