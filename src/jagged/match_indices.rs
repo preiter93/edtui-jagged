@@ -104,4 +104,34 @@ mod tests {
         let index = match_indices.next().map(|(_, index)| index);
         assert_eq!(index, None);
     }
+
+    #[test]
+    fn test_match_indices_empty_array() {
+        let jagged = Jagged::default();
+        let pattern: Vec<char> = vec!['a', 'b', 'c'];
+
+        let mut match_indices = jagged.match_indices(&pattern);
+        let index = match_indices.next().map(|(_, index)| index);
+        assert_eq!(index, None);
+    }
+
+    #[test]
+    fn test_match_indices_empty_pattern() {
+        let jagged = test_obj_long();
+        let pattern: Vec<char> = vec![];
+
+        let mut match_indices = jagged.match_indices(&pattern);
+        let index = match_indices.next().map(|(_, index)| index);
+        assert_eq!(index, None);
+    }
+
+    #[test]
+    fn test_match_indices_no_match() {
+        let jagged = test_obj_long();
+        let pattern: Vec<char> = vec!['x', 'y'];
+
+        let mut match_indices = jagged.match_indices(&pattern);
+        let index = match_indices.next().map(|(_, index)| index);
+        assert_eq!(index, None);
+    }
 }
