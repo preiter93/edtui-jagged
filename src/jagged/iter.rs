@@ -86,33 +86,6 @@ impl<'a, T> DoubleEndedIterator for JaggedIterator<'a, T> {
     }
 }
 
-// impl<'a> DoubleEndedIterator for LinesIterator<'a> {
-//     fn next_back(&mut self) -> Option<Self::Item> {
-//         if self.line < 0 {
-//             return None; // Reached the beginning of the buffer, stop iterating
-//         }
-//         let current = Position::new(self.line as usize, self.column);
-//
-//         if self.column > 0 {
-//             // Move to the previous column within the current line
-//             self.column = self.column.saturating_sub(1);
-//         } else {
-//             // If it's the first column, move to the next line
-//             self.line -= 1;
-//             // Skip empty lines
-//             while self.line >= 0 && self.lines.column_len_at(self.line as usize) == 0 {
-//                 self.line -= 1;
-//             }
-//             self.column = self
-//                 .lines
-//                 .column_len_at(self.line as usize)
-//                 .saturating_sub(1);
-//         }
-//
-//         Some(current)
-//     }
-// }
-
 impl<T> Jagged<T> {
     /// Returns an iterator that yields the element of a jagged
     /// array along with its current index.

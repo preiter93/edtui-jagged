@@ -1,11 +1,14 @@
 mod helper;
 mod iter;
+mod match_indices;
 use crate::{
     index::RowIndex,
     traits::{JaggedRemove, JaggedSlice},
     Index2, JaggedIndex,
 };
 use std::fmt::Debug;
+
+use self::match_indices::MatchIndices;
 
 /// A generic container for working with an object, where each element is organized
 /// into lines (rows).
@@ -403,6 +406,30 @@ impl<T: Clone> Jagged<T> {
         }
 
         flattened
+    }
+}
+
+impl<T: PartialEq> Jagged<T> {
+    /// Returns an iterator that searches for disjoint matches of a pattern within the array.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use edtui_jagged::{Jagged, Index2};
+    ///
+    /// let jagged = Jagged::from("aabcaabc\n\naabc.");
+    /// let pattern: Vec<char> = vec!['a', 'b', 'c'];
+    ///
+    /// let mut match_indices = jagged.match_indices(&pattern);
+    /// let index = match_indices.next().map(|(_, index)| index);
+    /// assert_eq!(index, Some(Index2::new(0, 1)));
+    /// ```
+    ///
+    /// The iterator returned by this method yields tuples, where the first element
+    /// is the matched slice and the second element is the corresponding index.
+    #[must_use]
+    pub fn match_indices<'b>(&self, pattern: &'b [T]) -> MatchIndices<'_, 'b, T> {
+        MatchIndices::new(self, pattern)
     }
 }
 
