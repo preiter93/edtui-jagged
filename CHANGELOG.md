@@ -5,3 +5,5 @@ Released
 ===================
 
 - Index2 derives default trait
+- Add match_indices method to search for sub-slices in an array
+- Improved documentation
