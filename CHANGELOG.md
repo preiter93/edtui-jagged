@@ -1,7 +1,7 @@
 Released
 --------
 
-0.1.1 - ?
+0.1.1 - 20 Jan 2024
 ===================
 
 - Index2 derives default trait
