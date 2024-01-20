@@ -1,3 +1,7 @@
+//! # Traits Module
+//!
+//! The `traits` module defines traits used by the `edtui_jagged` library for
+//! specific functionalities.
 use crate::{index::RowIndex, Index2, Jagged};
 
 /// A helper trait used for indexing operations of a jagged array.
