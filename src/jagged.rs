@@ -1,3 +1,9 @@
+//! # Jagged Module
+//!
+//! The `jagged` module contains the central component of the `edtui_jagged` library,
+//! the [`Jagged`] struct.
+//! This struct represents a generic container for working with an object where each
+//! element is organized into lines (rows).
 mod helper;
 mod iter;
 mod match_indices;
