@@ -87,14 +87,47 @@ impl<'a, T> DoubleEndedIterator for JaggedIterator<'a, T> {
 }
 
 impl<T> Jagged<T> {
-    /// Returns an iterator that yields the element of a jagged
-    /// array along with its current index.
+    /// Returns an iterator that yields the element of a jagged array along with its
+    /// current index.
+    ///
+    /// The iterator returned by this method yields tuples, where the first element is
+    /// the value of the jagged array at the current index, and the second element is
+    /// the corresponding index.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use edtui_jagged::Jagged;
+    ///
+    /// let jagged = Jagged::from("Hello\nworld");
+    ///
+    /// let mut iter = jagged.iter();
+    /// for (element, index) in iter {
+    ///     println!("Element {:?} at index {:?}", element, index);
+    /// }
+    /// ```
     #[must_use]
     pub fn iter(&self) -> JaggedIterator<'_, T> {
         JaggedIterator::new(self)
     }
 
     /// Returns an iterator over the rows of the jagged array.
+    ///
+    /// Each element yielded by the iterator is a `Vec<T>`, representing a row in the array.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use edtui_jagged::Jagged;
+    ///
+    /// // Create a Jagged instance from a string
+    /// let jagged = Jagged::from("Hello\nworld");
+    ///
+    /// let mut row_iter = jagged.iter_row();
+    /// for row in row_iter {
+    ///     println!("Row: {:?}", row);
+    /// }
+    /// ```
     pub fn iter_row(&self) -> Iter<'_, Vec<T>> {
         self.data.iter()
     }
