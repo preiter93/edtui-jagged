@@ -63,9 +63,8 @@ impl<'a, 'b, T: PartialEq + Debug> Iterator for MatchIndices<'a, 'b, T> {
             }
             sequence_buffer.push_back(value);
             if self.match_found(&sequence_buffer) {
-                // We set the start index for the next iteration. Note
-                // that the index might be none in which case the next
-                // iteration will return with None.
+                // We set the start index for the next iteration.The index might
+                // be none in which case the next iteration will stop.
                 self.start_index = self.data.next(index).map(|(_, index)| index);
                 // The match was found n elements before where n is the
                 // length of the pattern.
