@@ -1,5 +1,7 @@
 Unreleased
 --------
+- Add is_empty_row
+- Expose is_first/is_last col/row methods
 
 0.1.2 - 
 ===================
