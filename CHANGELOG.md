@@ -1,11 +1,10 @@
 Unreleased
 --------
+
+0.1.2 - 18 Feb 2024
+===================
 - Add is_empty_row
 - Expose is_first/is_last col/row methods
-
-0.1.2 - 
-===================
-
 
 Released
 --------
