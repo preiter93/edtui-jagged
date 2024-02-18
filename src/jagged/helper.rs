@@ -3,7 +3,7 @@ use crate::{Index2, Jagged};
 impl<T> Jagged<T> {
     /// Check if a given position is the first row.
     #[must_use]
-    pub(super) fn is_first_row<I>(&self, index: I) -> bool
+    pub fn is_first_row<I>(&self, index: I) -> bool
     where
         I: Into<Index2>,
     {
@@ -13,7 +13,7 @@ impl<T> Jagged<T> {
 
     /// Check if a given position is the last row.
     #[must_use]
-    pub(super) fn is_last_row<I>(&self, index: I) -> bool
+    pub fn is_last_row<I>(&self, index: I) -> bool
     where
         I: Into<Index2>,
     {
@@ -23,7 +23,7 @@ impl<T> Jagged<T> {
 
     /// Check if a given position is the first column.
     #[must_use]
-    pub(super) fn is_first_col<I>(&self, index: I) -> bool
+    pub fn is_first_col<I>(&self, index: I) -> bool
     where
         I: Into<Index2>,
     {
@@ -36,13 +36,13 @@ impl<T> Jagged<T> {
 
     /// Check if a given position is the last column.
     #[must_use]
-    pub(super) fn is_last_col<I>(&self, index: I) -> bool
+    pub fn is_last_col<I>(&self, index: I) -> bool
     where
         I: Into<Index2>,
     {
         let index = index.into();
         match self.data.get(index.row) {
-            Some(row) => index.col == row.len().saturating_sub(1),
+            Some(row) => index.col >= row.len().saturating_sub(1),
             None => false,
         }
     }

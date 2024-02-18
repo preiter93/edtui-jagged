@@ -181,6 +181,16 @@ impl<T> Jagged<T> {
         self.data.is_empty()
     }
 
+    /// Returns `true` if a specific row contains no elements.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `row` is out of bounds.
+    #[must_use]
+    pub fn is_empty_row(&self, row: usize) -> bool {
+        self.len_col(row) == 0
+    }
+
     /// Get the number of rows.
     #[must_use]
     pub fn len(&self) -> usize {
