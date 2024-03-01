@@ -207,6 +207,12 @@ impl<T> Jagged<T> {
         self.data[row].len()
     }
 
+    /// Get the number of columns of a given row.
+    /// Returns None if the row is out of bounds.
+    pub fn try_len_col(&self, row: usize) -> Option<usize> {
+        self.data.get(row).map(std::vec::Vec::len)
+    }
+
     // /// Find the first index.
     // /// Returns `Some(Index2)` if the matrix is not empty, otherwise `None`.
     // #[must_use]
