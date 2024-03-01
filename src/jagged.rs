@@ -182,13 +182,9 @@ impl<T> Jagged<T> {
     }
 
     /// Returns `true` if a specific row contains no elements.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `row` is out of bounds.
-    #[must_use]
-    pub fn is_empty_row(&self, row: usize) -> bool {
-        self.len_col(row) == 0
+    /// Returns None if the row is out of bounds.
+    pub fn is_empty_row(&self, row: usize) -> Option<bool> {
+        self.len_col(row).map(|row| row == 0)
     }
 
     /// Get the number of rows.
@@ -203,13 +199,13 @@ impl<T> Jagged<T> {
     ///
     /// Panics if `row` is out of bounds.
     #[must_use]
-    pub fn len_col(&self, row: usize) -> usize {
+    pub fn len_col_unchecked(&self, row: usize) -> usize {
         self.data[row].len()
     }
 
     /// Get the number of columns of a given row.
     /// Returns None if the row is out of bounds.
-    pub fn try_len_col(&self, row: usize) -> Option<usize> {
+    pub fn len_col(&self, row: usize) -> Option<usize> {
         self.data.get(row).map(std::vec::Vec::len)
     }
 
@@ -301,7 +297,7 @@ impl<T> Jagged<T> {
             (true, true) => None,
             (false, true) => {
                 let row = index.row - 1;
-                let index = Index2::new(row, self.len_col(row).saturating_sub(1));
+                let index = Index2::new(row, self.len_col_unchecked(row).saturating_sub(1));
                 self.get(index)
                     .map_or(Some((None, index)), |val| Some((Some(val), index)))
             }
@@ -324,7 +320,7 @@ impl<T> Jagged<T> {
             (true, true) => None,
             (false, true) => {
                 let row = index.row - 1;
-                let index = Index2::new(row, self.len_col(row).saturating_sub(1));
+                let index = Index2::new(row, self.len_col_unchecked(row).saturating_sub(1));
                 self.get_mut(index).map(|val| (val, index))
             }
             _ => {

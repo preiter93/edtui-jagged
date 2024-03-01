@@ -39,7 +39,10 @@ impl Index2 {
     /// Whether the index is out of bounds
     #[must_use]
     pub fn out_of_bounds<T>(&self, jagged: &Jagged<T>) -> bool {
-        self.row >= jagged.len() || (self.col != 0 && self.col >= jagged.len_col(self.row))
+        let Some(max_col) = jagged.len_col(self.row) else {
+            return true;
+        };
+        self.row >= jagged.len() || (self.col != 0 && self.col >= max_col)
     }
 }
 
