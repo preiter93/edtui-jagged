@@ -460,11 +460,7 @@ impl From<&str> for Jagged<char> {
         for line in value.lines() {
             data.push(line.chars().collect());
         }
-        if let Some(last) = value.chars().last() {
-            if last == '\n' {
-                data.push(Vec::new());
-            }
-        }
+
         Self { data }
     }
 }
