@@ -135,7 +135,9 @@ impl<T> Jagged<T> {
             return;
         }
         let last_row = self.len().saturating_sub(1);
-        self.data[last_row].append(&mut other.data.remove(0));
+        if !self.data.is_empty() {
+            self.data[last_row].append(&mut other.data.remove(0));
+        }
         self.data.append(&mut other.data);
     }
 
@@ -461,6 +463,12 @@ impl From<&str> for Jagged<char> {
             data.push(line.chars().collect());
         }
 
+        if let Some(last) = value.chars().last() {
+            if last == '\n' {
+                data.push(Vec::new());
+            }
+        }
+
         Self { data }
     }
 }
@@ -515,9 +523,13 @@ mod tests {
     fn test_merge() {
         let mut a = Jagged::new(vec![vec![1, 2]]);
         let mut b = Jagged::new(vec![vec![3], vec![4, 5, 6]]);
-        a.merge(&mut b);
 
+        a.merge(&mut b.clone());
         assert_eq!(a, Jagged::new(vec![vec![1, 2, 3], vec![4, 5, 6]]));
+
+        let mut a_empty = Jagged::new(vec![]);
+        a_empty.merge(&mut b);
+        assert_eq!(a_empty, Jagged::new(vec![vec![3], vec![4, 5, 6]]));
     }
 
     #[test]
