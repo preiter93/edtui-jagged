@@ -1,6 +1,10 @@
 Released
 --------
 
+0.1.5 - 28 Sep 2024
+===================
+- Make search case insensitive
+
 0.1.4 - 29 June 2024
 ===================
 - Fix bugs
