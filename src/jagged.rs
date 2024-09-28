@@ -7,6 +7,8 @@
 mod helper;
 mod iter;
 mod match_indices;
+use match_indices::MatchIndicesEq;
+
 use crate::{
     index::RowIndex,
     traits::{JaggedRemove, JaggedSlice},
@@ -429,7 +431,7 @@ impl<T: Clone> Jagged<T> {
     }
 }
 
-impl<T: PartialEq> Jagged<T> {
+impl<T: MatchIndicesEq> Jagged<T> {
     /// Returns an iterator that searches for disjoint matches of a pattern within the array.
     ///
     /// # Example

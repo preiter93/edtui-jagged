@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt::Debug};
+use std::{char, collections::VecDeque, fmt::Debug};
 
 use crate::{Index2, Jagged};
 
@@ -14,7 +14,19 @@ pub struct MatchIndices<'a, 'b, T> {
     start_index: Option<Index2>,
 }
 
-impl<'a, 'b, T: PartialEq> MatchIndices<'a, 'b, T> {
+pub trait MatchIndicesEq {
+    /// This method tests for `self` and `other` values to be equal, and is used
+    /// by `==`.
+    #[must_use]
+    fn eq(&self, other: &Self) -> bool;
+}
+impl MatchIndicesEq for char {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_lowercase().collect::<String>() == other.to_lowercase().collect::<String>()
+    }
+}
+
+impl<'a, 'b, T: MatchIndicesEq> MatchIndices<'a, 'b, T> {
     /// Instantiates a new [`MatchIndices`] that starts from a given position.
     #[must_use]
     pub(super) fn new(data: &'a Jagged<T>, pattern: &'b [T]) -> Self {
@@ -30,7 +42,7 @@ impl<'a, 'b, T: PartialEq> MatchIndices<'a, 'b, T> {
             return false;
         }
         for (a, b) in self.pattern.iter().zip(other.iter()) {
-            if &a != b {
+            if !a.eq(b) {
                 return false;
             }
         }
@@ -38,7 +50,7 @@ impl<'a, 'b, T: PartialEq> MatchIndices<'a, 'b, T> {
     }
 }
 
-impl<'a, 'b, T: PartialEq + Debug> Iterator for MatchIndices<'a, 'b, T> {
+impl<'a, 'b, T: MatchIndicesEq + Debug> Iterator for MatchIndices<'a, 'b, T> {
     type Item = (&'b [T], Index2);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -82,7 +94,7 @@ mod tests {
     use super::*;
 
     fn test_obj_long() -> Jagged<char> {
-        Jagged::from("aabcaabc\n\naabc.")
+        Jagged::from("aaBcaabc\n\naabc.")
     }
 
     #[test]
