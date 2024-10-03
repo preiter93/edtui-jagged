@@ -1,6 +1,10 @@
 Released
 --------
 
+0.1.6 - 03 Okt 2024
+===================
+- Move to next opening/closing bracket
+
 0.1.5 - 28 Sep 2024
 ===================
 - Make search case insensitive

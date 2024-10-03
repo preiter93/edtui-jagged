@@ -39,6 +39,7 @@
 #![allow(clippy::module_name_repetitions)]
 pub mod index;
 pub mod jagged;
+pub mod lines;
 pub mod traits;
 pub use index::Index2;
 pub use jagged::Jagged;
