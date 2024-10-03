@@ -187,6 +187,7 @@ impl<T> Jagged<T> {
 
     /// Returns `true` if a specific row contains no elements.
     /// Returns None if the row is out of bounds.
+    #[must_use]
     pub fn is_empty_row(&self, row: usize) -> Option<bool> {
         self.len_col(row).map(|row| row == 0)
     }

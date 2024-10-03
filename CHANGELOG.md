@@ -1,5 +1,7 @@
-Released
---------
+0.1.7 - 
+===================
+- Rename find_closing_x to find_matching_x
+- Fix linter errors
 
 0.1.6 - 03 Okt 2024
 ===================

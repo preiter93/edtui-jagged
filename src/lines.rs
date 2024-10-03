@@ -3,11 +3,10 @@ use crate::{Index2, Jagged};
 type Lines = Jagged<char>;
 
 impl Lines {
-    /// Finds the index of the closing (or matching opening) bracket from a given starting point.
-    pub fn find_closing_bracket(&self, index: Index2) -> Option<Index2> {
-        let Some(&opening_bracket) = self.get(index) else {
-            return None;
-        };
+    /// Finds the index of the matching (closing or opening) bracket from a given starting point.
+    #[must_use]
+    pub fn find_matching_bracket(&self, index: Index2) -> Option<Index2> {
+        let &opening_bracket = self.get(index)?;
 
         let (closing_bracket, reverse) = match opening_bracket {
             '{' => ('}', false),
@@ -42,7 +41,7 @@ impl Lines {
             }
         }
 
-        return None;
+        None
     }
 }
 
@@ -56,11 +55,11 @@ mod tests {
         let cursor = Index2::new(0, 0);
         let lines = Jagged::from("{ab\n{{}}c}d");
 
-        let closing_bracket = lines.find_closing_bracket(cursor);
+        let closing_bracket = lines.find_matching_bracket(cursor);
         assert_eq!(closing_bracket, Some(Index2::new(1, 5)));
 
         let cursor = Index2::new(1, 5);
-        let closing_bracket = lines.find_closing_bracket(cursor);
+        let closing_bracket = lines.find_matching_bracket(cursor);
         assert_eq!(closing_bracket, Some(Index2::new(0, 0)));
     }
 }
