@@ -1,4 +1,8 @@
-#![allow(clippy::cast_possible_wrap, clippy::cast_sign_loss)]
+#![allow(
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::into_iter_without_iter
+)]
 use crate::{Index2, Jagged};
 use core::slice::Iter;
 
@@ -130,6 +134,16 @@ impl<T> Jagged<T> {
     /// ```
     pub fn iter_row(&self) -> Iter<'_, Vec<T>> {
         self.data.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Jagged<T> {
+    type IntoIter = JaggedIterator<'a, T>;
+
+    type Item = (Option<&'a T>, Index2);
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 

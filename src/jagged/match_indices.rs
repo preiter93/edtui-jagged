@@ -60,9 +60,7 @@ impl<'a, 'b, T: MatchIndicesEq + Debug> Iterator for MatchIndices<'a, 'b, T> {
         // If the start index is None at this point, this means that the
         // previous iteration ended at the last element of the array and
         // we can stop here prematurely.
-        let Some(start_index) = self.start_index else {
-            return None;
-        };
+        let start_index = self.start_index?;
         let pattern_len = self.pattern.len();
         let mut sequence_buffer = VecDeque::<&T>::new();
         for (value, index) in self.data.iter().from(start_index) {
