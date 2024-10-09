@@ -1,4 +1,8 @@
-0.1.7 - 
+0.1.8 - 09 Okt 2024
+===================
+- Fix jagged iterator: If iterator stop is out of bounds, it iterated over the full data
+
+0.1.7 - 07 Okt 2024
 ===================
 - Rename find_closing_x to find_matching_x
 - Fix linter errors
