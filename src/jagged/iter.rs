@@ -40,6 +40,10 @@ impl<'a, T> JaggedIterator<'a, T> {
     /// A [`LinesIterator`] that end at a given position.
     #[must_use]
     pub fn to(self, index: Index2) -> Self {
+        let index = Index2::new(
+            index.row,
+            index.col.min(self.data.len_col(index.row).unwrap_or(0)),
+        );
         Self {
             data: self.data,
             row: self.row,
@@ -204,7 +208,7 @@ mod tests {
     }
 
     #[test]
-    fn test_iter_to() {
+    fn test_iter_from_to() {
         // given
         let jagged = test_obj_long();
         // when
@@ -213,6 +217,19 @@ mod tests {
         let got: Jagged<char> = jagged.iter().from(start).to(stop).collect();
         //then
         let exp = Jagged::from("orld!\n\n12");
+        assert_eq!(got, exp)
+    }
+
+    #[test]
+    fn test_iter_from_to_out_of_bounds() {
+        // given
+        let jagged = test_obj_long();
+        // when
+        let start = Index2::new(0, 3);
+        let stop = Index2::new(1, 99);
+        let got: Jagged<char> = jagged.iter().from(start).to(stop).collect();
+        //then
+        let exp = Jagged::from("orld!\n");
         assert_eq!(got, exp)
     }
 
