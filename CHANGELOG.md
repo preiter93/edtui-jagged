@@ -1,7 +1,7 @@
 0.1.9 - 12 Okt 2024
 ===================
 - Jagged::extract
-- Jagged::fuse_rows_at
+- Jagged::join_lines
 
 0.1.8 - 09 Okt 2024
 ===================
