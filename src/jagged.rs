@@ -148,11 +148,11 @@ impl<T> Jagged<T> {
     /// ```
     /// use edtui_jagged::Jagged;
     /// let mut data = Jagged::from("hello\nworld");
-    /// data.join_with_below(0);
+    /// data.join_lines(0);
     /// assert_eq!(data, Jagged::from("helloworld"));
     /// ````
-    pub fn join_with_below(&mut self, row_index: usize) {
-        if row_index + 1 > self.len() {
+    pub fn join_lines(&mut self, row_index: usize) {
+        if row_index + 1 >= self.len() {
             return;
         }
         let mut row = self.data.remove(row_index + 1);
@@ -451,43 +451,29 @@ impl<T> Jagged<T> {
             Jagged::new(vec![drain.collect::<Vec<U>>()])
         }
 
-        // if range.start > range.end {
-        //     return Err(ExtractError::new("Start cannot be greater than end index"));
-        // }
-        // if range.start.out_of_bounds(self) || range.end.out_of_bounds(self) {
-        //     return Err(ExtractError::new("Start or end index is out of bounds"));
-        // }
-        let (start_row, start_col) = match range.start_bound() {
+        let (start_row, mut start_col) = match range.start_bound() {
             Bound::Included(val) => (val.row, val.col),
             Bound::Excluded(val) => (val.row, val.col + 1),
             Bound::Unbounded => (0, 0),
         };
-        let (end_row, end_col) = match range.end_bound() {
+        start_col = start_col.min(self.len_col(start_row).unwrap_or_default());
+
+        let (end_row, mut end_col) = match range.end_bound() {
             Bound::Included(val) => (val.row, val.col + 1),
             Bound::Excluded(val) => (val.row, val.col),
             Bound::Unbounded => {
                 let row_index = self.len().saturating_sub(1);
-                if let Some(len_col) = self.len_col(row_index) {
-                    (row_index, len_col.saturating_sub(1))
-                } else {
-                    (0, 0)
-                }
+                let len_col = self.len_col(row_index).unwrap_or(0);
+                (row_index, len_col.saturating_sub(1))
             }
         };
-
-        if start_row == end_row {
-            let row = &mut self.data[start_row];
-            let drained = drain_into_jagged(row.drain(start_col..end_col));
-            return drained;
-        }
-
-        let mut drained = Jagged::<T>::default();
+        end_col = end_col.min(self.len_col(end_row).unwrap_or_default());
 
         let mut split_start: Option<usize> = None;
         let extract_from = if start_col == 0 {
-            start_row // extract the full row
+            start_row
         } else {
-            split_start = Some(start_col); // split it
+            split_start = Some(start_col);
             start_row + 1
         };
 
@@ -500,10 +486,20 @@ impl<T> Jagged<T> {
             end_row.saturating_sub(1)
         };
 
+        if start_row == end_row && split_start.is_none() && split_end.is_none() {
+            return self.extract_rows(start_row..=start_row);
+        }
+
+        if start_row == end_row {
+            let row = &mut self.data[start_row];
+            return drain_into_jagged(row.drain(start_col..end_col));
+        }
+
+        let mut drained = Jagged::<T>::default();
+
         if let Some(split_start) = split_start {
             let row = &mut self.data[start_row];
-            let mut drained_row = drain_into_jagged(row.drain(split_start..));
-            drained.append(&mut drained_row);
+            drained.append(&mut drain_into_jagged(row.drain(split_start..)));
         }
 
         let mut drained_rows = self.extract_rows(extract_from..=extract_until);
@@ -516,10 +512,10 @@ impl<T> Jagged<T> {
             drained.append(&mut drained_row);
         }
 
-        if split_start.is_some() {
-            self.join_with_below(start_row);
-        } else if split_end.is_some() {
-            self.join_with_below(start_row.saturating_sub(1));
+        if split_start.is_some() && split_end.is_some() {
+            self.join_lines(start_row.saturating_sub(1));
+        } else if split_start.is_some() || split_end.is_some() {
+            self.join_lines(start_row);
         }
 
         drained
@@ -747,7 +743,7 @@ mod tests {
     #[test]
     fn test_extract() {
         // given
-        let original = Jagged::from("first line\n\nsecond line\nlast line");
+        let original = Jagged::from("first\n\nsecond\nthird");
 
         // when
         let mut data = original.clone();
@@ -756,7 +752,7 @@ mod tests {
         //then
         let expected_drained = Jagged::from("fi");
         assert_eq!(drained, expected_drained);
-        let expected_remaining = Jagged::from("rst line\n\nsecond line\nlast line");
+        let expected_remaining = Jagged::from("rst\n\nsecond\nthird");
         assert_eq!(data, expected_remaining);
 
         // when
@@ -764,9 +760,9 @@ mod tests {
         let drained = data.extract(Index2::new(0, 0)..Index2::new(1, 0));
 
         //then
-        let expected_drained = Jagged::from("first line\n");
+        let expected_drained = Jagged::from("first\n");
         assert_eq!(drained, expected_drained);
-        let expected_remaining = Jagged::from("second line\nlast line");
+        let expected_remaining = Jagged::from("second\nthird");
         assert_eq!(data, expected_remaining);
 
         // when
@@ -774,9 +770,25 @@ mod tests {
         let drained = data.extract(Index2::new(0, 2)..Index2::new(2, 2));
 
         //then
-        let expected_drained = Jagged::from("rst line\n\nse");
+        let expected_drained = Jagged::from("rst\n\nse");
         assert_eq!(drained, expected_drained);
-        let expected_remaining = Jagged::from("ficond line\nlast line");
+        let expected_remaining = Jagged::from("ficond\nthird");
+        assert_eq!(data, expected_remaining);
+    }
+
+    #[test]
+    fn test_extract_out_of_bounds() {
+        // given
+        let original = Jagged::from("first\nsecond");
+
+        // when
+        let mut data = original.clone();
+        let drained = data.extract(Index2::new(0, 0)..Index2::new(0, 99));
+
+        //then
+        let expected_drained = Jagged::from("first");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("second");
         assert_eq!(data, expected_remaining);
     }
 }
