@@ -444,7 +444,8 @@ impl<T> Jagged<T> {
         T: Debug,
     {
         // This function is a bit of a mess. Turned out it is not that easy
-        // to extract slices with trying to handle out of bounds.
+        // to extract slices with trying to handle out of bounds. Maybe it
+        // would have been better to panic on out of bounds input.
 
         #[inline]
         fn drain_into_jagged<U>(drain: std::vec::Drain<U>) -> Jagged<U> {
