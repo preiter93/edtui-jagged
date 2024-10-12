@@ -143,7 +143,7 @@ impl<T> Jagged<T> {
         self.data.append(&mut other.data);
     }
 
-    /// Joins two consecutive rows together. Merge row_index with row_index +1.
+    /// Joins two consecutive rows together. Merge `row_index` with `row_index` + 1.
     /// # Example
     /// ```
     /// use edtui_jagged::Jagged;
@@ -427,11 +427,6 @@ impl<T> Jagged<T> {
 
     /// Extracts a range of [Index2]..[Index2] and returns a newly allocated `Jagged<T>`.
     ///
-    /// # Panics
-    ///
-    /// Panics if the range is invalid. Either if start is lower than end,
-    /// or if any of start or end is out of bounds.
-    ///
     /// # Example
     /// ```
     /// use edtui_jagged::{Index2, Jagged};
@@ -442,63 +437,143 @@ impl<T> Jagged<T> {
     /// assert_eq!(data, Jagged::from(" world!"));
     /// ```
     #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn extract<R>(&mut self, range: R) -> Jagged<T>
     where
         R: RangeBounds<Index2>,
+        T: Debug,
     {
+        // This function is a bit of a mess. Turned out it is not that easy
+        // to extract slices with trying to handle out of bounds.
+
         #[inline]
         fn drain_into_jagged<U>(drain: std::vec::Drain<U>) -> Jagged<U> {
             Jagged::new(vec![drain.collect::<Vec<U>>()])
         }
+        #[inline]
+        fn max_col<U>(lines: &Jagged<U>, row_index: usize) -> usize {
+            lines
+                .len_col(row_index)
+                .map_or(0, |line| line.saturating_sub(1))
+        }
 
-        let (start_row, mut start_col) = match range.start_bound() {
-            Bound::Included(val) => (val.row, val.col),
-            Bound::Excluded(val) => (val.row, val.col + 1),
-            Bound::Unbounded => (0, 0),
+        let mut start = match range.start_bound() {
+            Bound::Included(val) => Index2::new(val.row, val.col),
+            Bound::Excluded(val) => Index2::new(val.row, val.col + 1),
+            Bound::Unbounded => Index2::new(0, 0),
         };
-        start_col = start_col.min(self.len_col(start_row).unwrap_or_default());
-
-        let (end_row, mut end_col) = match range.end_bound() {
-            Bound::Included(val) => (val.row, val.col + 1),
-            Bound::Excluded(val) => (val.row, val.col),
+        let mut end = match range.end_bound() {
+            Bound::Included(val) => Index2::new(val.row, val.col),
+            Bound::Excluded(val) => {
+                if val.row == 0 && val.col == 0 {
+                    return Jagged::default();
+                }
+                if val.col == 0 {
+                    Index2::new(val.row - 1, max_col(self, val.row))
+                } else {
+                    Index2::new(val.row, val.col - 1)
+                }
+            }
             Bound::Unbounded => {
                 let row_index = self.len().saturating_sub(1);
                 let len_col = self.len_col(row_index).unwrap_or(0);
-                (row_index, len_col.saturating_sub(1))
+                Index2::new(row_index, len_col.saturating_sub(1))
             }
         };
-        end_col = end_col.min(self.len_col(end_row).unwrap_or_default());
 
-        let mut split_start: Option<usize> = None;
-        let extract_from = if start_col == 0 {
-            start_row
-        } else {
-            split_start = Some(start_col);
-            start_row + 1
-        };
+        // Check if start is out of bounds
+        let last_row_index = self.len().saturating_sub(1);
 
-        let mut split_end: Option<usize> = None;
-        let end_row_len = self.len_col_unchecked(end_row);
-        let extract_until = if end_col >= end_row_len {
-            end_row
-        } else {
-            split_end = Some(end_col);
-            end_row.saturating_sub(1)
-        };
-
-        if start_row == end_row && split_start.is_none() && split_end.is_none() {
-            return self.extract_rows(start_row..=start_row);
-        }
-
-        if start_row == end_row {
-            let row = &mut self.data[start_row];
-            return drain_into_jagged(row.drain(start_col..end_col));
+        // Start row out of bounds, return empty
+        if start.row > last_row_index {
+            return Jagged::default();
         }
 
         let mut drained = Jagged::<T>::default();
 
+        // Handle end being out of bounds on the selection start
+        let mut start_column_out_of_bounds = false;
+        let max_start_col = self
+            .len_col(start.row)
+            .map_or(0, |line| line.saturating_sub(1));
+        if start.col > max_start_col {
+            start.col = max_start_col;
+            start_column_out_of_bounds = true;
+        }
+
+        if start_column_out_of_bounds {
+            drained.push(Vec::new());
+        }
+
+        // If start.row is now out of bounds after adjustment return empty
+        if start.row > last_row_index {
+            return drained;
+        }
+
+        // Handle end being out of bounds on the selection end
+        let mut end_column_out_of_bounds = false;
+        if end.row > last_row_index {
+            end.row = last_row_index;
+            let max_end_col = max_col(self, end.row);
+            end.col = max_end_col;
+            end_column_out_of_bounds = true;
+        } else {
+            let max_end_col = max_col(self, end.row);
+            if end.col > max_end_col {
+                end.col = max_end_col;
+                end_column_out_of_bounds = true;
+            }
+        }
+
+        // Determine the start from which *row* extraction begins
+        let mut split_start: Option<usize> = None;
+        let extract_from = if start.col == 0 && !start_column_out_of_bounds {
+            start.row
+        } else if start_column_out_of_bounds {
+            start.row + 1
+        } else {
+            split_start = Some(start.col);
+            start.row + 1
+        };
+
+        // Determine the end *row* extraction happens
+        let mut split_end: Option<usize> = None;
+        let max_end_col = max_col(self, end.row);
+        let extract_until = if end.col >= max_end_col {
+            end.row
+        } else {
+            split_end = Some(end.col);
+            end.row.saturating_sub(1)
+        };
+
+        if start > end || (start == end && start_column_out_of_bounds) {
+            return Jagged::default();
+        }
+
+        // Handle case where entire row is extracted (no splitting)
+        if start.row == end.row && split_start.is_none() && split_end.is_none() {
+            drained.append(&mut self.extract_rows(start.row..=start.row));
+            return drained;
+        }
+
+        // Handle case where entire extraction happens on a single line
+        if start.row == end.row {
+            let row = &mut self.data[start.row];
+            drained.append(&mut drain_into_jagged(row.drain(start.col..=end.col)));
+            if start_column_out_of_bounds {
+                self.join_lines(start.row.saturating_sub(1));
+            } else if end_column_out_of_bounds {
+                self.join_lines(start.row);
+            }
+            return drained;
+        }
+
+        // Handle case where the extraction takes place over multiple lines
+        // First split the first line, if needed. Then extract rows. Finally
+        // split the last line, if needed.
+
         if let Some(split_start) = split_start {
-            let row = &mut self.data[start_row];
+            let row = &mut self.data[start.row];
             drained.append(&mut drain_into_jagged(row.drain(split_start..)));
         }
 
@@ -507,15 +582,13 @@ impl<T> Jagged<T> {
         drained.append(&mut drained_rows);
 
         if let Some(split_end) = split_end {
-            let row = &mut self.data[end_row.saturating_sub(num_drained_rows)];
-            let mut drained_row = drain_into_jagged(row.drain(..split_end));
+            let row = &mut self.data[end.row.saturating_sub(num_drained_rows)];
+            let mut drained_row = drain_into_jagged(row.drain(..=split_end));
             drained.append(&mut drained_row);
         }
 
-        if split_start.is_some() && split_end.is_some() {
-            self.join_lines(start_row.saturating_sub(1));
-        } else if split_start.is_some() || split_end.is_some() {
-            self.join_lines(start_row);
+        if split_start.is_some() || start_column_out_of_bounds {
+            self.join_lines(start.row);
         }
 
         drained
@@ -532,6 +605,7 @@ impl<T> Jagged<T> {
     /// assert_eq!(drained, Jagged::from("hello"));
     /// assert_eq!(data, Jagged::from("\nworld!"));
     /// ```
+    #[must_use]
     pub fn extract_rows<R>(&mut self, range: R) -> Jagged<T>
     where
         R: RangeBounds<usize>,
@@ -757,7 +831,7 @@ mod tests {
 
         // when
         let mut data = original.clone();
-        let drained = data.extract(Index2::new(0, 0)..Index2::new(1, 0));
+        let drained = data.extract(Index2::new(0, 0)..=Index2::new(1, 0));
 
         //then
         let expected_drained = Jagged::from("first\n");
@@ -773,6 +847,47 @@ mod tests {
         let expected_drained = Jagged::from("rst\n\nse");
         assert_eq!(drained, expected_drained);
         let expected_remaining = Jagged::from("ficond\nthird");
+        assert_eq!(data, expected_remaining);
+
+        // when
+        let mut data = original.clone();
+        let drained = data.extract(Index2::new(2, 2)..Index2::new(3, 2));
+
+        //then
+        let expected_drained = Jagged::from("cond\nth");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("first\n\nseird");
+        assert_eq!(data, expected_remaining);
+
+        // when
+        let mut data = original.clone();
+        let drained = data.extract(Index2::new(2, 0)..=Index2::new(3, 0));
+
+        //then
+        let expected_drained = Jagged::from("second\nt");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("first\n\nhird");
+        assert_eq!(data, expected_remaining);
+
+        // when
+        let mut data = original.clone();
+
+        let drained = data.extract(Index2::new(1, 0)..=Index2::new(2, 1));
+
+        //then
+        let expected_drained = Jagged::from("\nse");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("first\ncond\nthird");
+        assert_eq!(data, expected_remaining);
+
+        // when
+        let mut data = original.clone();
+        let drained = data.extract(Index2::new(1, 3)..=Index2::new(2, 1));
+
+        //then
+        let expected_drained = Jagged::from("\nse");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("first\ncond\nthird");
         assert_eq!(data, expected_remaining);
     }
 
@@ -790,5 +905,55 @@ mod tests {
         assert_eq!(drained, expected_drained);
         let expected_remaining = Jagged::from("second");
         assert_eq!(data, expected_remaining);
+
+        // when
+        let mut data = original.clone();
+        let drained = data.extract(Index2::new(0, 99)..Index2::new(1, 99));
+
+        //then
+        let expected_drained = Jagged::from("\nsecond");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("first");
+        assert_eq!(data, expected_remaining);
+
+        // when
+        let mut data = original.clone();
+        let drained = data.extract(Index2::new(0, 10)..Index2::new(11, 0));
+
+        //then
+        let expected_drained = Jagged::from("\nsecond");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("first");
+        assert_eq!(data, expected_remaining);
+
+        // when
+        let mut data = original.clone();
+        let drained = data.extract(Index2::new(0, 1)..Index2::new(0, 99));
+
+        //then
+        let expected_drained = Jagged::from("irst");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("fsecond");
+        assert_eq!(data, expected_remaining);
+    }
+
+    #[test]
+    fn test_extract_end_larger_than_start() {
+        // given
+        let original = Jagged::from("first\nsecond");
+
+        // when
+        let mut data = original.clone();
+        let _ = data.extract(Index2::new(0, 99)..Index2::new(0, 90));
+    }
+
+    #[test]
+    fn test_extract_end_equals_start() {
+        // given
+        let original = Jagged::from("first\nsecond");
+
+        // when
+        let mut data = original.clone();
+        let _ = data.extract(Index2::new(0, 1)..Index2::new(0, 1));
     }
 }
