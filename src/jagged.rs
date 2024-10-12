@@ -6,6 +6,7 @@
 //! element is organized into lines (rows).
 mod helper;
 mod iter;
+pub mod lines;
 mod match_indices;
 use match_indices::MatchIndicesEq;
 
@@ -14,7 +15,10 @@ use crate::{
     traits::{JaggedRemove, JaggedSlice},
     Index2, JaggedIndex,
 };
-use std::fmt::Debug;
+use std::{
+    fmt::Debug,
+    ops::{Bound, RangeBounds},
+};
 
 use self::match_indices::MatchIndices;
 
@@ -102,11 +106,7 @@ impl<T> Jagged<T> {
         I: JaggedIndex<T>,
         U: JaggedSlice<T, Index = I>,
     {
-        // let index = index.into();
         slice.insert_into(index, self);
-        // if let Some(line) = self.get_mut(RowIndex::new(index.row)) {
-        //     line.insert(index.col, element)
-        // }
     }
 
     /// Removes and returns the element at position index within the jagged array.
@@ -141,6 +141,22 @@ impl<T> Jagged<T> {
             self.data[last_row].append(&mut other.data.remove(0));
         }
         self.data.append(&mut other.data);
+    }
+
+    /// Joins two consecutive rows together. Merge row_index with row_index +1.
+    /// # Example
+    /// ```
+    /// use edtui_jagged::Jagged;
+    /// let mut data = Jagged::from("hello\nworld");
+    /// data.join_with_below(0);
+    /// assert_eq!(data, Jagged::from("helloworld"));
+    /// ````
+    pub fn join_with_below(&mut self, row_index: usize) {
+        if row_index + 1 > self.len() {
+            return;
+        }
+        let mut row = self.data.remove(row_index + 1);
+        self.data[row_index].append(&mut row);
     }
 
     /// Truncate lines up to the specified position.
@@ -408,6 +424,124 @@ impl<T> Jagged<T> {
         }
         None
     }
+
+    /// Extracts a range of [Index2]..[Index2] and returns a newly allocated `Jagged<T>`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the range is invalid. Either if start is lower than end,
+    /// or if any of start or end is out of bounds.
+    ///
+    /// # Example
+    /// ```
+    /// use edtui_jagged::{Index2, Jagged};
+    ///
+    /// let mut data = Jagged::from("hello world!");
+    /// let drained = data.extract(Index2::new(0, 0)..Index2::new(0, 5));
+    /// assert_eq!(drained, Jagged::from("hello"));
+    /// assert_eq!(data, Jagged::from(" world!"));
+    /// ```
+    #[must_use]
+    pub fn extract<R>(&mut self, range: R) -> Jagged<T>
+    where
+        R: RangeBounds<Index2>,
+    {
+        #[inline]
+        fn drain_into_jagged<U>(drain: std::vec::Drain<U>) -> Jagged<U> {
+            Jagged::new(vec![drain.collect::<Vec<U>>()])
+        }
+
+        // if range.start > range.end {
+        //     return Err(ExtractError::new("Start cannot be greater than end index"));
+        // }
+        // if range.start.out_of_bounds(self) || range.end.out_of_bounds(self) {
+        //     return Err(ExtractError::new("Start or end index is out of bounds"));
+        // }
+        let (start_row, start_col) = match range.start_bound() {
+            Bound::Included(val) => (val.row, val.col),
+            Bound::Excluded(val) => (val.row, val.col + 1),
+            Bound::Unbounded => (0, 0),
+        };
+        let (end_row, end_col) = match range.end_bound() {
+            Bound::Included(val) => (val.row, val.col + 1),
+            Bound::Excluded(val) => (val.row, val.col),
+            Bound::Unbounded => {
+                let row_index = self.len().saturating_sub(1);
+                if let Some(len_col) = self.len_col(row_index) {
+                    (row_index, len_col.saturating_sub(1))
+                } else {
+                    (0, 0)
+                }
+            }
+        };
+
+        if start_row == end_row {
+            let row = &mut self.data[start_row];
+            let drained = drain_into_jagged(row.drain(start_col..end_col));
+            return drained;
+        }
+
+        let mut drained = Jagged::<T>::default();
+
+        let mut split_start: Option<usize> = None;
+        let extract_from = if start_col == 0 {
+            start_row // extract the full row
+        } else {
+            split_start = Some(start_col); // split it
+            start_row + 1
+        };
+
+        let mut split_end: Option<usize> = None;
+        let end_row_len = self.len_col_unchecked(end_row);
+        let extract_until = if end_col >= end_row_len {
+            end_row
+        } else {
+            split_end = Some(end_col);
+            end_row.saturating_sub(1)
+        };
+
+        if let Some(split_start) = split_start {
+            let row = &mut self.data[start_row];
+            let mut drained_row = drain_into_jagged(row.drain(split_start..));
+            drained.append(&mut drained_row);
+        }
+
+        let mut drained_rows = self.extract_rows(extract_from..=extract_until);
+        let num_drained_rows = drained_rows.len();
+        drained.append(&mut drained_rows);
+
+        if let Some(split_end) = split_end {
+            let row = &mut self.data[end_row.saturating_sub(num_drained_rows)];
+            let mut drained_row = drain_into_jagged(row.drain(..split_end));
+            drained.append(&mut drained_row);
+        }
+
+        if split_start.is_some() {
+            self.join_with_below(start_row);
+        } else if split_end.is_some() {
+            self.join_with_below(start_row.saturating_sub(1));
+        }
+
+        drained
+    }
+
+    /// Extracts a range of rows and returns a newly allocated `Jagged<T>`.
+    ///
+    /// # Example
+    /// ```
+    /// use edtui_jagged::{Index2, Jagged};
+    ///
+    /// let mut data = Jagged::from("hello\n\nworld!");
+    /// let drained = data.extract_rows(0..1);
+    /// assert_eq!(drained, Jagged::from("hello"));
+    /// assert_eq!(data, Jagged::from("\nworld!"));
+    /// ```
+    pub fn extract_rows<R>(&mut self, range: R) -> Jagged<T>
+    where
+        R: RangeBounds<usize>,
+    {
+        Jagged::new(self.data.drain(range).collect::<Vec<Vec<T>>>())
+    }
 }
 
 impl<T: Clone> Jagged<T> {
@@ -453,33 +587,6 @@ impl<T: MatchIndicesEq> Jagged<T> {
     #[must_use]
     pub fn match_indices<'b>(&self, pattern: &'b [T]) -> MatchIndices<'_, 'b, T> {
         MatchIndices::new(self, pattern)
-    }
-}
-
-impl From<&str> for Jagged<char> {
-    /// Instantiate a [`Jagged<char>`] from a string. Iterates over the lines
-    /// of the string, i.e. a multiline string will be parsed to multiple
-    /// inner vectors.
-    fn from(value: &str) -> Self {
-        let mut data: Vec<Vec<char>> = Vec::new();
-        for line in value.lines() {
-            data.push(line.chars().collect());
-        }
-
-        if let Some(last) = value.chars().last() {
-            if last == '\n' {
-                data.push(Vec::new());
-            }
-        }
-
-        Self { data }
-    }
-}
-
-impl From<Jagged<char>> for String {
-    /// Construct a string from a [`Jagged<char>`].
-    fn from(value: Jagged<char>) -> String {
-        value.flatten(&Some('\n')).into_iter().collect()
     }
 }
 
@@ -635,5 +742,41 @@ mod tests {
         let lines = Jagged::from("H\n");
 
         assert_eq!(lines, Jagged::new(vec![vec!['H'], vec![]]));
+    }
+
+    #[test]
+    fn test_extract() {
+        // given
+        let original = Jagged::from("first line\n\nsecond line\nlast line");
+
+        // when
+        let mut data = original.clone();
+        let drained = data.extract(Index2::new(0, 0)..Index2::new(0, 2));
+
+        //then
+        let expected_drained = Jagged::from("fi");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("rst line\n\nsecond line\nlast line");
+        assert_eq!(data, expected_remaining);
+
+        // when
+        let mut data = original.clone();
+        let drained = data.extract(Index2::new(0, 0)..Index2::new(1, 0));
+
+        //then
+        let expected_drained = Jagged::from("first line\n");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("second line\nlast line");
+        assert_eq!(data, expected_remaining);
+
+        // when
+        let mut data = original.clone();
+        let drained = data.extract(Index2::new(0, 2)..Index2::new(2, 2));
+
+        //then
+        let expected_drained = Jagged::from("rst line\n\nse");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("ficond line\nlast line");
+        assert_eq!(data, expected_remaining);
     }
 }

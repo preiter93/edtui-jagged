@@ -1,3 +1,8 @@
+0.1.9 - 12 Okt 2024
+===================
+- Jagged::extract
+- Jagged::fuse_rows_at
+
 0.1.8 - 09 Okt 2024
 ===================
 - Fix jagged iterator: If iterator stop is out of bounds, it iterated over the full data

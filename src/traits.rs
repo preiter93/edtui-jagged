@@ -104,8 +104,8 @@ impl<T> JaggedSlice<T> for T {
 }
 
 impl<T> JaggedSlice<T> for RowSlice<T>
-where
-    T: std::fmt::Debug + Clone,
+// where
+//     T: std::fmt::Debug + Clone,
 {
     type Index = RowIndex;
 

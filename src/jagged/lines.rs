@@ -2,9 +2,36 @@ use crate::{Index2, Jagged};
 
 type Lines = Jagged<char>;
 
+impl<T: AsRef<str>> From<T> for Jagged<char> {
+    fn from(value: T) -> Self {
+        let mut data: Vec<Vec<char>> = Vec::new();
+        for line in value.as_ref().lines() {
+            data.push(line.chars().collect());
+        }
+
+        if let Some(last) = value.as_ref().chars().last() {
+            if last == '\n' {
+                data.push(Vec::new());
+            }
+        }
+
+        Self { data }
+    }
+}
+
+impl From<Jagged<char>> for String {
+    fn from(value: Jagged<char>) -> String {
+        value.flatten(&Some('\n')).into_iter().collect()
+    }
+}
+
 impl Lines {
     /// Finds the index of the matching (closing or opening) bracket from a given starting point.
     #[must_use]
+    #[deprecated(
+        since = "0.1.9",
+        note = "Line specifics should not be part of this library"
+    )]
     pub fn find_matching_bracket(&self, index: Index2) -> Option<Index2> {
         let &opening_bracket = self.get(index)?;
 
@@ -47,7 +74,7 @@ impl Lines {
 
 #[cfg(test)]
 mod tests {
-
+    #![allow(deprecated)]
     use super::*;
 
     #[test]
