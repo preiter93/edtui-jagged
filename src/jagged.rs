@@ -460,7 +460,7 @@ impl<T> Jagged<T> {
                 .len_col(row_index)
                 .map_or(0, |line| line.saturating_sub(1))
         }
-        if self.len() == 0 {
+        if self.is_empty() {
             return Jagged::default();
         }
 
@@ -941,6 +941,22 @@ mod tests {
         let expected_drained = Jagged::from("irst");
         assert_eq!(drained, expected_drained);
         let expected_remaining = Jagged::from("fsecond");
+        assert_eq!(data, expected_remaining);
+    }
+
+    #[test]
+    fn test_extract_empty_buffer() {
+        // given
+        let original = Jagged::from("");
+
+        // when
+        let mut data = original.clone();
+        let drained = data.extract(Index2::new(0, 0)..=Index2::new(0, 0));
+
+        // then
+        let expected_drained = Jagged::from("");
+        assert_eq!(drained, expected_drained);
+        let expected_remaining = Jagged::from("");
         assert_eq!(data, expected_remaining);
     }
 
