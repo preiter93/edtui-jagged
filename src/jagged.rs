@@ -427,6 +427,9 @@ impl<T> Jagged<T> {
 
     /// Extracts a range of [Index2]..[Index2] and returns a newly allocated `Jagged<T>`.
     ///
+    /// Returns empty data if the input range is incorrectly orderered or if both start
+    /// and end position are out of bounds.
+    ///
     /// # Example
     /// ```
     /// use edtui_jagged::{Index2, Jagged};
@@ -444,8 +447,8 @@ impl<T> Jagged<T> {
         T: Debug,
     {
         // This function is a bit of a mess. Turned out it is not that easy
-        // to extract slices with trying to handle out of bounds. Maybe it
-        // would have been better to panic on out of bounds input.
+        // to extract slices while trying to handle out of bounds gracefully
+        // Maybe it would have been better to panic on out of bounds input.
 
         #[inline]
         fn drain_into_jagged<U>(drain: std::vec::Drain<U>) -> Jagged<U> {
@@ -526,7 +529,7 @@ impl<T> Jagged<T> {
             }
         }
 
-        // Determine the start from which *row* extraction begins
+        // Determine the start from which row extraction begins
         let mut split_start: Option<usize> = None;
         let extract_from = if start.col == 0 && !start_column_out_of_bounds {
             start.row
@@ -537,7 +540,7 @@ impl<T> Jagged<T> {
             start.row + 1
         };
 
-        // Determine the end *row* extraction happens
+        // Determine the end until which to extract rows
         let mut split_end: Option<usize> = None;
         let max_end_col = max_col(self, end.row);
         let extract_until = if end.col >= max_end_col {
@@ -557,7 +560,7 @@ impl<T> Jagged<T> {
             return drained;
         }
 
-        // Handle case where entire extraction happens on a single line
+        // Handle case where entire extraction happens on a single line (splitting)
         if start.row == end.row {
             let row = &mut self.data[start.row];
             drained.append(&mut drain_into_jagged(row.drain(start.col..=end.col)));
@@ -570,8 +573,8 @@ impl<T> Jagged<T> {
         }
 
         // Handle case where the extraction takes place over multiple lines
-        // First split the first line, if needed. Then extract rows. Finally
-        // split the last line, if needed.
+        // Split the first line, if needed. Then extract rows. Finally split
+        // the last line, if needed.
 
         if let Some(split_start) = split_start {
             let row = &mut self.data[start.row];
