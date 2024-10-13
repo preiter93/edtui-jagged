@@ -460,6 +460,9 @@ impl<T> Jagged<T> {
                 .len_col(row_index)
                 .map_or(0, |line| line.saturating_sub(1))
         }
+        if self.len() == 0 {
+            return Jagged::default();
+        }
 
         let mut start = match range.start_bound() {
             Bound::Included(val) => Index2::new(val.row, val.col),
