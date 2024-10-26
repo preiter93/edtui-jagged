@@ -1,6 +1,57 @@
-use crate::{Index2, Jagged};
+use crate::{index::RowIndex, Index2, Jagged};
 
 impl<T> Jagged<T> {
+    /// Returns the first row's index.
+    #[must_use]
+    pub fn first_row_index(&self) -> usize {
+        0
+    }
+
+    /// Returns the last row's index.
+    #[must_use]
+    pub fn last_row_index(&self) -> usize {
+        self.len().saturating_sub(1)
+    }
+
+    /// Returns the first cols's index within a row.
+    #[must_use]
+    pub fn first_col_index(&self, _: usize) -> usize {
+        0
+    }
+
+    /// Returns the last col's index within a row.
+    #[must_use]
+    pub fn last_col_index(&self, row_index: usize) -> usize {
+        match self.get(RowIndex::new(row_index)) {
+            Some(row) => row.len().saturating_sub(1),
+            None => 0,
+        }
+    }
+
+    /// Returns the first row, if it exists.
+    #[must_use]
+    pub fn first_row(&self) -> Option<&Vec<T>> {
+        self.get(RowIndex::new(self.first_row_index()))
+    }
+
+    /// Returns the last row, if it exists.
+    #[must_use]
+    pub fn last_row(&self) -> Option<&Vec<T>> {
+        self.get(RowIndex::new(self.last_row_index()))
+    }
+
+    /// Returns the first col within a row, if it exists.
+    #[must_use]
+    pub fn first_col(&self, row_index: usize) -> Option<&T> {
+        self.get(Index2::new(row_index, self.first_col_index(row_index)))
+    }
+
+    /// Returns the last col within a row, if it exists.
+    #[must_use]
+    pub fn last_col(&self, row_index: usize) -> Option<&T> {
+        self.get(Index2::new(row_index, self.last_col_index(row_index)))
+    }
+
     /// Check if a given position is the first row.
     #[must_use]
     pub fn is_first_row<I>(&self, index: I) -> bool
@@ -18,7 +69,7 @@ impl<T> Jagged<T> {
         I: Into<Index2>,
     {
         let index = index.into();
-        index.row == self.data.len() - 1 && !self.data.is_empty()
+        !self.data.is_empty() && index.row == self.data.len().saturating_sub(1)
     }
 
     /// Check if a given position is the first column.
@@ -52,21 +103,45 @@ impl<T> Jagged<T> {
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn test_first_position() {
-    //     let data: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
-    //     let lines = Jagged2::new(data);
-    //
-    //     assert_eq!(lines.first_index(), Some(Index2::new(0, 0)));
-    // }
+    #[test]
+    fn test_last_row() {
+        let lines = Jagged::new(vec![vec![1, 2, 3], vec![4, 5, 6]]);
+        assert_eq!(lines.last_row(), Some(&vec![4, 5, 6]));
 
-    // #[test]
-    // fn test_last_position() {
-    //     let data: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
-    //     let lines = Jagged2::new(data);
-    //
-    //     assert_eq!(lines.last_index(), Some(Index2::new(2, 2)));
-    // }
+        let lines: Jagged<usize> = Jagged::new(vec![]);
+        assert_eq!(lines.last_row(), None);
+    }
+
+    #[test]
+    fn test_last_col() {
+        let lines = Jagged::new(vec![vec![1, 2, 3], vec![4, 5, 6]]);
+        assert_eq!(lines.last_col(0), Some(&3));
+        assert_eq!(lines.last_col(1), Some(&6));
+        assert_eq!(lines.last_col(2), None);
+
+        let lines: Jagged<usize> = Jagged::new(vec![]);
+        assert_eq!(lines.last_col(0), None);
+    }
+
+    #[test]
+    fn test_last_row_index() {
+        let lines = Jagged::new(vec![vec![1, 2, 3], vec![4, 5, 6]]);
+        assert_eq!(lines.last_row_index(), 1);
+
+        let lines: Jagged<usize> = Jagged::new(vec![]);
+        assert_eq!(lines.last_row_index(), 0);
+    }
+
+    #[test]
+    fn test_last_col_index() {
+        let lines = Jagged::new(vec![vec![1, 2, 3], vec![4, 5, 6]]);
+        assert_eq!(lines.last_col_index(0), 2);
+        assert_eq!(lines.last_col_index(1), 2);
+        assert_eq!(lines.last_col_index(2), 0);
+
+        let lines: Jagged<usize> = Jagged::new(vec![]);
+        assert_eq!(lines.last_col_index(0), 0);
+    }
 
     #[test]
     fn test_is_first_col() {
@@ -104,12 +179,4 @@ mod tests {
         assert!(!lines.is_last_row(Index2::new(0, 0)));
         assert!(lines.is_last_row(Index2::new(2, 0)));
     }
-
-    // #[test]
-    // fn test_get_last() {
-    //     let data: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
-    //     let lines = Jagged2::new(data);
-    //
-    //     assert_eq!(lines.get_last(1), Some((&6, Index2::new(1, 2))));
-    // }
 }
