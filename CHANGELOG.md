@@ -1,3 +1,7 @@
+0.1.12 - 26 Okt 2024
+===================
+- Add a `copy_range` method
+
 0.1.11 - 26 Okt 2024
 ===================
 - Add methods to obtain first/last row/cols

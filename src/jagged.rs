@@ -425,10 +425,39 @@ impl<T> Jagged<T> {
         None
     }
 
+    fn range_bounds<R>(&self, range: R) -> Option<(Index2, Index2)>
+    where
+        R: RangeBounds<Index2>,
+    {
+        let start = match range.start_bound() {
+            Bound::Included(val) => Index2::new(val.row, val.col),
+            Bound::Excluded(val) => Index2::new(val.row, val.col + 1),
+            Bound::Unbounded => Index2::new(0, 0),
+        };
+
+        let end = match range.end_bound() {
+            Bound::Included(val) => Index2::new(val.row, val.col),
+            Bound::Excluded(val) => match (val.row, val.col) {
+                (0, 0) => return None,
+                (row, 0) => Index2::new(row - 1, self.last_col_index(row - 1)),
+                (row, col) => Index2::new(row, col - 1),
+            },
+            Bound::Unbounded => {
+                let last_row = self.last_row_index();
+                Index2::new(last_row, self.last_col_index(last_row))
+            }
+        };
+
+        Some((start, end))
+    }
+
     /// Extracts a range of [Index2]..[Index2] and returns a newly allocated `Jagged<T>`.
     ///
     /// Returns empty data if the input range is incorrectly orderered or if both start
     /// and end position are out of bounds.
+    ///
+    /// See [`Jagged::get_range`], if you do not want to remove the slice from the
+    /// original data.
     ///
     /// # Example
     /// ```
@@ -441,10 +470,9 @@ impl<T> Jagged<T> {
     /// ```
     #[must_use]
     #[allow(clippy::too_many_lines)]
-    pub fn extract<R>(&mut self, range: R) -> Jagged<T>
+    pub fn extract<R>(&mut self, range: R) -> Self
     where
         R: RangeBounds<Index2>,
-        T: Debug,
     {
         // This function is a bit of a mess. Turned out it is not that easy
         // to extract slices while trying to handle out of bounds gracefully
@@ -454,51 +482,22 @@ impl<T> Jagged<T> {
         fn drain_into_jagged<U>(drain: std::vec::Drain<U>) -> Jagged<U> {
             Jagged::new(vec![drain.collect::<Vec<U>>()])
         }
-        #[inline]
-        fn max_col<U>(lines: &Jagged<U>, row_index: usize) -> usize {
-            lines
-                .len_col(row_index)
-                .map_or(0, |line| line.saturating_sub(1))
-        }
         if self.is_empty() {
             return Jagged::default();
         }
 
-        let mut start = match range.start_bound() {
-            Bound::Included(val) => Index2::new(val.row, val.col),
-            Bound::Excluded(val) => Index2::new(val.row, val.col + 1),
-            Bound::Unbounded => Index2::new(0, 0),
-        };
-        let mut end = match range.end_bound() {
-            Bound::Included(val) => Index2::new(val.row, val.col),
-            Bound::Excluded(val) => {
-                if val.row == 0 && val.col == 0 {
-                    return Jagged::default();
-                }
-                if val.col == 0 {
-                    Index2::new(val.row - 1, max_col(self, val.row))
-                } else {
-                    Index2::new(val.row, val.col - 1)
-                }
-            }
-            Bound::Unbounded => {
-                let row_index = self.len().saturating_sub(1);
-                let len_col = self.len_col(row_index).unwrap_or(0);
-                Index2::new(row_index, len_col.saturating_sub(1))
-            }
+        let Some((mut start, mut end)) = self.range_bounds(range) else {
+            return Jagged::default();
         };
 
-        // Check if start is out of bounds
-        let last_row_index = self.last_row_index();
-
-        // Start row out of bounds, return empty
-        if start.row > last_row_index {
+        // Handle start row out of bounds, return empty
+        if start.row > self.last_row_index() {
             return Jagged::default();
         }
 
         let mut drained = Jagged::<T>::default();
 
-        // Handle end being out of bounds on the selection start
+        // Handle start col out of bounds
         let mut start_column_out_of_bounds = false;
         let max_start_col = self
             .len_col(start.row)
@@ -513,19 +512,19 @@ impl<T> Jagged<T> {
         }
 
         // If start.row is now out of bounds after adjustment return empty
-        if start.row > last_row_index {
+        if start.row > self.last_row_index() {
             return drained;
         }
 
         // Handle end being out of bounds on the selection end
         let mut end_column_out_of_bounds = false;
-        if end.row > last_row_index {
-            end.row = last_row_index;
-            let max_end_col = max_col(self, end.row);
+        if end.row > self.last_row_index() {
+            end.row = self.last_row_index();
+            let max_end_col = self.last_col_index(end.row);
             end.col = max_end_col;
             end_column_out_of_bounds = true;
         } else {
-            let max_end_col = max_col(self, end.row);
+            let max_end_col = self.last_col_index(end.row);
             if end.col > max_end_col {
                 end.col = max_end_col;
                 end_column_out_of_bounds = true;
@@ -545,7 +544,7 @@ impl<T> Jagged<T> {
 
         // Determine the end until which to extract rows
         let mut split_end: Option<usize> = None;
-        let max_end_col = max_col(self, end.row);
+        let max_end_col = self.last_col_index(end.row);
         let extract_until = if end.col >= max_end_col {
             end.row
         } else {
@@ -613,7 +612,7 @@ impl<T> Jagged<T> {
     /// assert_eq!(data, Jagged::from("\nworld!"));
     /// ```
     #[must_use]
-    pub fn extract_rows<R>(&mut self, range: R) -> Jagged<T>
+    pub fn extract_rows<R>(&mut self, range: R) -> Self
     where
         R: RangeBounds<usize>,
     {
@@ -640,6 +639,48 @@ impl<T: Clone> Jagged<T> {
         }
 
         flattened
+    }
+
+    /// Returns a new [`Jagged`] array by copying a range from [`Jagged`].
+    ///
+    /// See [`Jagged::extract`], if you want to remove the slice from the
+    /// original data.
+    ///
+    /// Handles ranges out of bounds as such:
+    /// - if start is out of bounds, add a new line at position zero and
+    /// copy from the start of next line.
+    /// - if end is out of bounds, append a new line at the end of the
+    /// copied data and copy from the end of the previous row.
+    #[must_use]
+    pub fn copy_range<R>(&self, range: R) -> Self
+    where
+        R: RangeBounds<Index2>,
+    {
+        let mut copied_lines = Self::default();
+        let Some((mut start, mut end)) = self.range_bounds(range) else {
+            return Jagged::default();
+        };
+
+        // Handle start out of bounds
+        if start.col > self.last_col_index(start.row) {
+            copied_lines.push(vec![]);
+            start = Index2::new(start.row.saturating_add(1), 0);
+        }
+
+        // Handle end out of bounds
+        let mut append_newline_at_the_end = false;
+        if end.col > self.last_col_index(end.row) {
+            end.col = self.last_col_index(end.row);
+            append_newline_at_the_end = true;
+        }
+
+        copied_lines.append(&mut self.iter().from(start).to(end).collect::<Self>());
+
+        if append_newline_at_the_end {
+            copied_lines.push(vec![]);
+        }
+
+        copied_lines
     }
 }
 
@@ -978,5 +1019,35 @@ mod tests {
         // when
         let mut data = original.clone();
         let _ = data.extract(Index2::new(0, 1)..Index2::new(0, 1));
+    }
+
+    #[test]
+    fn test_copy_range() {
+        let data = Jagged::from("Hello\nWorld");
+
+        let start = Index2::new(0, 3);
+        let end = Index2::new(1, 1);
+        assert_eq!(data.copy_range(start..=end), Jagged::from("lo\nWo"));
+
+        let start = Index2::new(0, 0);
+        let end = Index2::new(0, 2);
+        assert_eq!(data.copy_range(start..end), Jagged::from("He"));
+
+        let start = Index2::new(0, 0);
+        let end = Index2::new(0, 1);
+        assert_eq!(data.copy_range(start..end), Jagged::from("H"));
+
+        let start = Index2::new(0, 0);
+        let end = Index2::new(0, 0);
+        assert_eq!(data.copy_range(start..end), Jagged::default());
+    }
+
+    #[test]
+    fn test_copy_range_out_of_bounds() {
+        let data = Jagged::from("Hello\nWorld");
+        let start = Index2::new(0, 5);
+        let end = Index2::new(1, 1);
+
+        assert_eq!(data.copy_range(start..=end), Jagged::from("\nWo"));
     }
 }
