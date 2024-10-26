@@ -648,9 +648,9 @@ impl<T: Clone> Jagged<T> {
     ///
     /// Handles ranges out of bounds as such:
     /// - if start is out of bounds, add a new line at position zero and
-    /// copy from the start of next line.
+    ///   copy from the start of next line.
     /// - if end is out of bounds, append a new line at the end of the
-    /// copied data and copy from the end of the previous row.
+    ///   copied data and copy from the end of the previous row.
     #[must_use]
     pub fn copy_range<R>(&self, range: R) -> Self
     where
