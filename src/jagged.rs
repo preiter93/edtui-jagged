@@ -136,7 +136,7 @@ impl<T> Jagged<T> {
         if other.data.is_empty() {
             return;
         }
-        let last_row = self.len().saturating_sub(1);
+        let last_row = self.last_row_index();
         if !self.data.is_empty() {
             self.data[last_row].append(&mut other.data.remove(0));
         }
@@ -489,7 +489,7 @@ impl<T> Jagged<T> {
         };
 
         // Check if start is out of bounds
-        let last_row_index = self.len().saturating_sub(1);
+        let last_row_index = self.last_row_index();
 
         // Start row out of bounds, return empty
         if start.row > last_row_index {

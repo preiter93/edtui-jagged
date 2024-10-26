@@ -1,3 +1,7 @@
+0.1.11 - 26 Okt 2024
+===================
+- Add methods to obtain first/last row/cols
+
 0.1.9 - 12 Okt 2024
 ===================
 - Jagged::extract
