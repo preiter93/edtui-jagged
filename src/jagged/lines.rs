@@ -26,6 +26,15 @@ impl From<Jagged<char>> for String {
 }
 
 impl Lines {
+    /// Returns the data as a single String, with lines joined by newlines.
+    pub fn to_string(&self) -> String {
+        self.data
+            .iter()
+            .map(|line| line.iter().collect::<String>())
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+
     /// Finds the index of the matching (closing or opening) bracket from a given starting point.
     #[must_use]
     #[deprecated(

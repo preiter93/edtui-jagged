@@ -143,6 +143,11 @@ impl<T> Jagged<T> {
         self.data.append(&mut other.data);
     }
 
+    /// Consumes the Lines and returns the underlying nested vectors.
+    pub fn into_vecs(self) -> Vec<Vec<T>> {
+        self.data
+    }
+
     /// Joins two consecutive rows together. Merge `row_index` with `row_index` + 1.
     /// # Example
     /// ```
@@ -705,6 +710,13 @@ impl<T: MatchIndicesEq> Jagged<T> {
     #[must_use]
     pub fn match_indices<'b>(&self, pattern: &'b [T]) -> MatchIndices<'_, 'b, T> {
         MatchIndices::new(self, pattern)
+    }
+}
+
+impl<T: Clone> Jagged<T> {
+    /// Returns a clone of the underlying nested vectors.
+    pub fn to_vecs(&self) -> Vec<Vec<T>> {
+        self.data.clone()
     }
 }
 

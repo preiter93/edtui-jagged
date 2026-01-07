@@ -1,3 +1,7 @@
+0.1.13 - 07 Jan 2026
+===================
+- Add helper for lines to get string and inner data
+
 0.1.12 - 26 Okt 2024
 ===================
 - Add a `copy_range` method
